@@ -330,3 +330,74 @@ class WiC_biSentence_abandoned(Dataset):
         #return type(len): tensor(2*tokMaxLen)*3개, tensor(2*tokMaxLen)*3개,  tensor(int), tensor(int), tensor(int)
         #current len: 200,200,200, 200,200,200, 1, 1, 1
 
+
+## model COLA dataloader ##
+class WIC_dataset_new(Dataset): 
+    def __init__(self, data_filename): #str: path of csv
+        super(COLA_dataset,self).__init__()
+        self.data = pd.read_csv(os.path.join(os.getcwd(),data_filename), sep="\t")      # 데이터를 읽어옴
+        self.tokenizer = model_tokenizer.from_pretrained(model_path)        # pretrained된 tokenizer
+    
+    def __len__(self): #return size of dataset(row*column)
+        return len(self.data)
+        
+    def __getitem__(self, item): #fetch data sample(row) for given key(item)
+
+        sentData = self.data.iloc[item,:]       # item번째 row, 전부 return
+            
+        tok = self.tokenizer(sentData['sentence'], padding="max_length", max_length=20, truncation=True)
+        #PreTrainedTokenizer.__call__(): str -> tensor(3*400)       # 문장 잘림 허용
+
+
+        ## def find_target_index : target단어의 위치를 리턴해주는 함수
+        text = sentData['sentence']
+        marked_text = "[CLS] " + text + " [SEP]"
+
+        tokenized_text = self.tokenizer.tokenize(marked_text)
+        print(type(tokenized_text))
+
+        for tup in range(len(tokenized_text)):
+            print(tup, tokenized_text[tup])
+
+        print(tokenized_text.index('사람'))
+
+        print("다시")
+
+        additional_special_tokens = ["까불"]
+
+        special = model_tokenizer.from_pretrained(model_path, additional_special_tokens = additional_special_tokens)
+        tok = special(sentData['sentence'], padding="max_length", max_length=20, truncation=True)
+        #PreTrainedTokenizer.__call__(): str -> tensor(3*400)       # 문장 잘림 허용
+
+
+        ## def find_target_index : target단어의 위치를 리턴해주는 함수
+        text = sentData['sentence']
+        marked_text = "[CLS] " + text + " [SEP]"
+
+        tokenized_text = special.tokenize(marked_text)
+        print(type(tokenized_text))
+
+        for tup in range(len(tokenized_text)):
+            print(tup, tokenized_text[tup])
+
+
+
+        exit()
+        ## 나중에 만들려고 일단 써놓음. 나중에 지워야됨.
+
+
+        label=sentData['acceptability_label']       # 'acceptability_label'는 문법이 맞는지 안맞는지 라벨. 맞으면 1, 틀리면 0
+
+        input_ids=torch.LongTensor(tok["input_ids"]) #input token index in vacabs
+        token_type_ids=torch.LongTensor(tok["token_type_ids"]) #segment token index 
+        attention_mask=torch.LongTensor(tok["attention_mask"]) #boolean: masking attention(0), not masked(1)
+
+        # input_ids : 정수 인코딩 결과. WordPiece Embedding, 실질적인 입력이 되는 워드 임베딩
+        # token_type_ids : Segment Embedding(두 개의 문장을 구분하기 위한 임베딩)
+        # Attention Mask(1 : 실제 단어, 0 : 패딩 토큰) 패딩 토큰에 어텐션을 하지 않도록 0으로 마스킹
+
+        # torch.LongTensor는 64비트의 부호 있는 정수 표현 할 때 쓰임.
+
+        # 텐서는 2개 이상의 독립적인 방향을 동시에 표현할 때 사용. tensor : matrix의 집합
+            
+        return input_ids, token_type_ids, attention_mask, label #tensor(400), tensor(400), tensor(400), int
